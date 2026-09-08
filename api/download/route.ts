@@ -12,10 +12,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Retrieve video details and formats
     const info = await ytdl.getInfo(url);
+    const cleanTitle = info.videoDetails.title.replace(/[^a-zA-Z0-9 ]/g, "");
 
-    // Get highest quality format with both audio and video
+    // Choose format with both video and audio
     const format = ytdl.chooseFormat(info.formats, {
       quality: "highest",
       filter: "videoandaudio",
@@ -29,9 +29,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      title: info.videoDetails.title,
+      title: cleanTitle,
       downloadUrl: format.url,
-      thumbnail: info.videoDetails.thumbnails.slice(-1)[0]?.url,
     });
   } catch (err: any) {
     console.error("YTDL Error:", err);
