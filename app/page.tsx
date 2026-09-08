@@ -8,6 +8,7 @@ export default function HomePage() {
   const [urlInput, setUrlInput] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,8 +21,10 @@ export default function HomePage() {
 
       setIsProcessing(true);
       setErrorMessage("");
+      setDownloadProgress("Fetching video details...");
 
       try {
+        // 1. Get YouTube direct CDN link from Next.js API
         const res = await fetch("/api/download", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -31,17 +34,31 @@ export default function HomePage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to fetch video.");
 
-        // Create direct download link in browser
-        const a = document.createElement("a");
-        a.href = data.downloadUrl;
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        a.download = `${data.title}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        setDownloadProgress("Downloading video to device...");
+
+        // 2. Fetch the video payload directly into browser memory (bypasses player tab)
+        const videoRes = await fetch(data.downloadUrl);
+        if (!videoRes.ok) throw new Error("Failed to download video stream.");
+
+        const blob = await videoRes.blob();
+
+        // 3. Create a local object URL and trigger direct file save
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = `${data.title || "video"}.mp4`;
+        document.body.appendChild(link);
+        link.click();
+
+        // Clean up
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+        setDownloadProgress("");
       } catch (error: any) {
-        setErrorMessage(error.message || "An error occurred during download.");
+        setErrorMessage(
+          error.message || "An error occurred while saving the video."
+        );
+        setDownloadProgress("");
       } finally {
         setIsProcessing(false);
       }
@@ -118,9 +135,13 @@ export default function HomePage() {
               </div>
               {errorMessage ? (
                 <p className="link-error">{errorMessage}</p>
+              ) : downloadProgress ? (
+                <p style={{ color: "var(--ink)", fontWeight: "bold" }}>
+                  ⏳ {downloadProgress}
+                </p>
               ) : (
                 <p className="direct-note">
-                  Supports YouTube links (.mp4, .webm)
+                  Supports YouTube links (.mp4)
                 </p>
               )}
             </div>
@@ -162,7 +183,7 @@ export default function HomePage() {
               (activeTab === "upload" && !file)
             }
           >
-            {isProcessing ? "Processing..." : "Get Download Link"}
+            {isProcessing ? "Downloading file..." : "Download Now"}
           </button>
         </form>
       </main>
