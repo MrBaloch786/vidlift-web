@@ -2,72 +2,49 @@
 
 import React, { useState } from "react";
 
+interface VideoOption {
+  qualityLabel: string;
+  url: string;
+  container: string;
+}
+
 export default function HomePage() {
-  const [activeTab, setActiveTab] = useState<"upload" | "link">("link");
-  const [file, setFile] = useState<File | null>(null);
   const [urlInput, setUrlInput] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState("");
+  const [videoData, setVideoData] = useState<{
+    title: string;
+    thumbnail: string;
+    videoOptions: VideoOption[];
+  } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (activeTab === "link") {
-      if (!urlInput.trim()) {
-        setErrorMessage("Please enter a video URL.");
-        return;
-      }
+    if (!urlInput.trim()) {
+      setErrorMessage("Please enter a YouTube video URL.");
+      return;
+    }
 
-      setIsProcessing(true);
-      setErrorMessage("");
-      setDownloadProgress("Fetching video details...");
+    setIsProcessing(true);
+    setErrorMessage("");
+    setVideoData(null);
 
-      try {
-        // 1. Get YouTube direct CDN link from Next.js API
-        const res = await fetch("/api/download", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: urlInput }),
-        });
+    try {
+      const res = await fetch("/api/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: urlInput }),
+      });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to fetch video.");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch video.");
 
-        setDownloadProgress("Downloading video to device...");
-
-        // 2. Fetch the video payload directly into browser memory (bypasses player tab)
-        const videoRes = await fetch(data.downloadUrl);
-        if (!videoRes.ok) throw new Error("Failed to download video stream.");
-
-        const blob = await videoRes.blob();
-
-        // 3. Create a local object URL and trigger direct file save
-        const blobUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = blobUrl;
-        link.download = `${data.title || "video"}.mp4`;
-        document.body.appendChild(link);
-        link.click();
-
-        // Clean up
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
-        setDownloadProgress("");
-      } catch (error: any) {
-        setErrorMessage(
-          error.message || "An error occurred while saving the video."
-        );
-        setDownloadProgress("");
-      } finally {
-        setIsProcessing(false);
-      }
-    } else {
-      if (!file) {
-        setErrorMessage("Please select a file to upload.");
-        return;
-      }
-      alert("File selected.");
+      setVideoData(data);
+    } catch (error: any) {
+      setErrorMessage(error.message || "An error occurred.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -92,100 +69,100 @@ export default function HomePage() {
         <h1>
           Download Videos <em>effortlessly.</em>
         </h1>
-        <p>Paste a YouTube URL below to download directly to your device.</p>
+        <p>Paste a YouTube link below to convert and download.</p>
       </section>
 
       <main className="converter" style={{ margin: "0 auto" }}>
-        <div className="source-switch">
-          <button
-            type="button"
-            className={activeTab === "link" ? "selected" : ""}
-            onClick={() => {
-              setActiveTab("link");
-              setErrorMessage("");
-            }}
-          >
-            Video Link
-          </button>
-          <button
-            type="button"
-            className={activeTab === "upload" ? "selected" : ""}
-            onClick={() => {
-              setActiveTab("upload");
-              setErrorMessage("");
-            }}
-          >
-            Upload File
-          </button>
-        </div>
-
         <form onSubmit={handleSubmit}>
-          {activeTab === "link" && (
-            <div className="link-box">
-              <label htmlFor="video-url">Video URL</label>
-              <div>
-                <span>🔗</span>
-                <input
-                  id="video-url"
-                  type="url"
-                  placeholder="Paste YouTube video link..."
-                  value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
-                />
-              </div>
-              {errorMessage ? (
-                <p className="link-error">{errorMessage}</p>
-              ) : downloadProgress ? (
-                <p style={{ color: "var(--ink)", fontWeight: "bold" }}>
-                  ⏳ {downloadProgress}
-                </p>
-              ) : (
-                <p className="direct-note">
-                  Supports YouTube links (.mp4)
-                </p>
-              )}
+          <div className="link-box">
+            <label htmlFor="video-url">YouTube Video URL</label>
+            <div>
+              <span>🔗</span>
+              <input
+                id="video-url"
+                type="url"
+                placeholder="Paste YouTube video link here..."
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+              />
             </div>
-          )}
-
-          {activeTab === "upload" && (
-            <div className="dropzone">
-              <div className="upload-icon">📁</div>
-              <strong>Drag and drop your video file here</strong>
-              <small>Supports MP4, MOV, WEBM, M4V</small>
-              <label className="browse">
-                Browse File
-                <input
-                  type="file"
-                  accept="video/*"
-                  hidden
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) {
-                      setFile(e.target.files[0]);
-                      setErrorMessage("");
-                    }
-                  }}
-                />
-              </label>
-              {file && (
-                <small style={{ marginTop: "12px", fontWeight: "bold" }}>
-                  Selected: {file.name}
-                </small>
-              )}
-            </div>
-          )}
+            {errorMessage && <p className="link-error">{errorMessage}</p>}
+          </div>
 
           <button
             type="submit"
             className="primary"
-            disabled={
-              isProcessing ||
-              (activeTab === "link" && !urlInput) ||
-              (activeTab === "upload" && !file)
-            }
+            disabled={isProcessing || !urlInput.trim()}
           >
-            {isProcessing ? "Downloading file..." : "Download Now"}
+            {isProcessing ? "Processing Video..." : "Get Download Links"}
           </button>
         </form>
+
+        {/* Video Download Section */}
+        {videoData && (
+          <div
+            style={{
+              marginTop: "24px",
+              padding: "16px",
+              border: "1px solid var(--line)",
+              borderRadius: "16px",
+              background: "#fff",
+            }}
+          >
+            {videoData.thumbnail && (
+              <img
+                src={videoData.thumbnail}
+                alt={videoData.title}
+                style={{
+                  width: "100%",
+                  maxHeight: "220px",
+                  objectFit: "cover",
+                  borderRadius: "12px",
+                  marginBottom: "12px",
+                }}
+              />
+            )}
+            <h3 style={{ fontSize: "16px", marginBottom: "16px" }}>
+              {videoData.title}
+            </h3>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {videoData.videoOptions.map((opt, index) => (
+                <a
+                  key={index}
+                  href={opt.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "12px 16px",
+                    background: "#f0f4f1",
+                    borderRadius: "10px",
+                    textDecoration: "none",
+                    color: "var(--ink)",
+                    fontWeight: "bold",
+                  }}
+                >
+                  <span>Download MP4 ({opt.qualityLabel})</span>
+                  <span>⬇️ Save</span>
+                </a>
+              ))}
+            </div>
+            <p
+              style={{
+                fontSize: "12px",
+                color: "var(--muted)",
+                marginTop: "12px",
+                textAlign: "center",
+              }}
+            >
+              Tip: If the video plays in the browser, right-click "Save" and choose <strong>Save Link As...</strong>
+            </p>
+          </div>
+        )}
       </main>
 
       <footer>
