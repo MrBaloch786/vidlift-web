@@ -12,12 +12,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get metadata and clean video title for filename
+    // Get video metadata
     const info = await ytdl.getInfo(url);
-    const rawTitle = info.videoDetails.title || "video";
-    const safeTitle = rawTitle.replace(/[^a-zA-Z0-9 _-]/g, "").trim();
+    const cleanTitle = info.videoDetails.title.replace(/[^a-zA-Z0-9 ]/g, "").trim();
 
-    // Select format with both audio and video
+    // Select format with both audio and video combined
     const format = ytdl.chooseFormat(info.formats, {
       quality: "highest",
       filter: "videoandaudio",
@@ -25,32 +24,20 @@ export async function POST(req: NextRequest) {
 
     if (!format || !format.url) {
       return NextResponse.json(
-        { error: "No direct format found for this video." },
+        { error: "No direct download link found for this video." },
         { status: 404 }
       );
     }
 
-    // Fetch stream from YouTube servers on the backend side
-    const videoResponse = await fetch(format.url);
-
-    if (!videoResponse.ok || !videoResponse.body) {
-      return NextResponse.json(
-        { error: "Unable to retrieve video stream." },
-        { status: 500 }
-      );
-    }
-
-    // Proxy the stream back to client with forced attachment headers
-    return new NextResponse(videoResponse.body as any, {
-      headers: {
-        "Content-Disposition": `attachment; filename="${safeTitle}.mp4"`,
-        "Content-Type": "video/mp4",
-      },
+    // Return the URL and title back to client immediately
+    return NextResponse.json({
+      title: cleanTitle || "video",
+      downloadUrl: format.url,
     });
   } catch (err: any) {
     console.error("YTDL Error:", err);
     return NextResponse.json(
-      { error: "Failed to download YouTube video." },
+      { error: "Failed to fetch YouTube link. Try another video." },
       { status: 500 }
     );
   }
