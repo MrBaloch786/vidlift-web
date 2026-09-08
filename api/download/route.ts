@@ -13,24 +13,29 @@ export async function POST(req: NextRequest) {
     }
 
     const info = await ytdl.getInfo(url);
-    const cleanTitle = info.videoDetails.title.replace(/[^a-zA-Z0-9 ]/g, "").trim();
+    const title = info.videoDetails.title;
+    const thumbnail = info.videoDetails.thumbnails.slice(-1)[0]?.url;
 
-    // Select format with both audio and video
-    const format = ytdl.chooseFormat(info.formats, {
-      quality: "highest",
-      filter: "videoandaudio",
-    });
+    // Filter formats with both audio and video
+    const formats = ytdl.filterFormats(info.formats, "videoandaudio");
 
-    if (!format || !format.url) {
+    if (!formats || formats.length === 0) {
       return NextResponse.json(
-        { error: "No direct download link found for this video." },
+        { error: "No direct formats found for this video." },
         { status: 404 }
       );
     }
 
+    const videoOptions = formats.map((f) => ({
+      qualityLabel: f.qualityLabel || "MP4",
+      url: f.url,
+      container: f.container || "mp4",
+    }));
+
     return NextResponse.json({
-      title: cleanTitle || "video",
-      downloadUrl: format.url,
+      title,
+      thumbnail,
+      videoOptions,
     });
   } catch (err: any) {
     console.error("YTDL Error:", err);
