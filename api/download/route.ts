@@ -12,11 +12,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get video metadata
     const info = await ytdl.getInfo(url);
     const cleanTitle = info.videoDetails.title.replace(/[^a-zA-Z0-9 ]/g, "").trim();
 
-    // Select format with both audio and video combined
+    // Select format with both audio and video
     const format = ytdl.chooseFormat(info.formats, {
       quality: "highest",
       filter: "videoandaudio",
@@ -29,7 +28,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Return the URL and title back to client immediately
     return NextResponse.json({
       title: cleanTitle || "video",
       downloadUrl: format.url,
@@ -37,7 +35,7 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error("YTDL Error:", err);
     return NextResponse.json(
-      { error: "Failed to fetch YouTube link. Try another video." },
+      { error: "Failed to process YouTube video." },
       { status: 500 }
     );
   }
