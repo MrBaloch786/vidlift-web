@@ -2,16 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const { url } = await req.json();
+    const body = await req.json();
+    const url = body?.url;
 
     if (!url) {
       return NextResponse.json(
-        { error: "Please enter a valid video link." },
+        { error: "Please enter a valid YouTube video URL." },
         { status: 400 }
       );
     }
 
-    // Call RapidAPI Cobalt endpoint with standard video options
+    // Request direct video link from RapidAPI Cobalt instance
     const response = await fetch(
       "https://cobalt-social-media-downloader.p.rapidapi.com/cobalt-download/",
       {
@@ -32,17 +33,20 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
 
-    // Check for direct stream URL or tunnel URL returned by Cobalt API
-    let downloadUrl = data.url || data.picker?.[0]?.url;
+    // Check all possible response properties returned by Cobalt
+    const downloadUrl =
+      data?.url ||
+      data?.picker?.[0]?.url ||
+      data?.streamUrl;
 
     if (!response.ok || !downloadUrl) {
-      console.error("RapidAPI Response Error:", data);
+      console.error("RapidAPI API Error Response:", data);
       return NextResponse.json(
         {
           error:
-            data.text ||
-            data.message ||
-            "Unable to extract link. Please try another video or check your RapidAPI subscription.",
+            data?.text ||
+            data?.message ||
+            "Unable to parse video stream. Please check video privacy or RapidAPI key quota.",
         },
         { status: 400 }
       );
@@ -53,9 +57,9 @@ export async function POST(req: NextRequest) {
       title: "video",
     });
   } catch (err: any) {
-    console.error("Route Error:", err);
+    console.error("Server Route Catch Error:", err?.message || err);
     return NextResponse.json(
-      { error: "Server error occurred while processing video." },
+      { error: `Server processing error: ${err?.message || "Unknown error"}` },
       { status: 500 }
     );
   }
