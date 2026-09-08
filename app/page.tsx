@@ -9,70 +9,54 @@ export default function HomePage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Client-side URL Validator
-  const validateUrl = (value: string) => {
-    if (!value.trim()) return "Paste a video URL.";
-    try {
-      const parsedUrl = new URL(value);
-      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-        return "Use an HTTP or HTTPS link.";
-      }
-      return "";
-    } catch {
-      return "Enter a complete, valid URL.";
-    }
-  };
-
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setUrlInput(value);
-    if (value.length > 0) {
-      setErrorMessage(validateUrl(value));
-    } else {
-      setErrorMessage("");
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (activeTab === "link") {
-      const err = validateUrl(urlInput);
-      if (err) {
-        setErrorMessage(err);
+      if (!urlInput.trim()) {
+        setErrorMessage("Please enter a video URL.");
         return;
       }
 
       setIsProcessing(true);
+      setErrorMessage("");
 
       try {
-        // 1. Fetch video details from our Next.js API
+        // 1. Post URL directly to backend endpoint
         const res = await fetch("/api/download", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url: urlInput }),
         });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Download failed");
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Download failed.");
+        }
 
-        // 2. Fetch the video payload directly as a Blob
-        const videoResponse = await fetch(data.downloadUrl);
-        const blob = await videoResponse.blob();
+        // 2. Read content filename header if available
+        const disposition = res.headers.get("Content-Disposition");
+        let filename = "video.mp4";
+        if (disposition && disposition.includes("filename=")) {
+          filename = disposition.split("filename=")[1].replace(/"/g, "");
+        }
 
-        // 3. Force direct file save in browser
+        // 3. Convert incoming stream response directly to blob
+        const blob = await res.blob();
         const blobUrl = window.URL.createObjectURL(blob);
+
+        // 4. Force immediate file download in user browser
         const link = document.createElement("a");
         link.href = blobUrl;
-        link.download = `${data.title || "video"}.mp4`;
+        link.setAttribute("download", filename);
         document.body.appendChild(link);
         link.click();
 
-        // Clean up
+        // Cleanup DOM
         document.body.removeChild(link);
         window.URL.revokeObjectURL(blobUrl);
       } catch (error: any) {
-        setErrorMessage(error.message || "An error occurred while downloading.");
+        setErrorMessage(error.message || "An error occurred during download.");
       } finally {
         setIsProcessing(false);
       }
@@ -81,7 +65,7 @@ export default function HomePage() {
         setErrorMessage("Please select a file to upload.");
         return;
       }
-      alert("File processing is ready.");
+      alert("File selected for conversion.");
     }
   };
 
@@ -106,7 +90,7 @@ export default function HomePage() {
         <h1>
           Download Videos <em>effortlessly.</em>
         </h1>
-        <p>Paste a video link below to download directly to your device.</p>
+        <p>Paste a video link below to save directly to your device downloads folder.</p>
       </section>
 
       <main className="converter" style={{ margin: "0 auto" }}>
@@ -142,16 +126,16 @@ export default function HomePage() {
                 <input
                   id="video-url"
                   type="url"
-                  placeholder="Paste YouTube or direct video link here..."
+                  placeholder="Paste YouTube or direct video link..."
                   value={urlInput}
-                  onChange={handleUrlChange}
+                  onChange={(e) => setUrlInput(e.target.value)}
                 />
               </div>
               {errorMessage ? (
                 <p className="link-error">{errorMessage}</p>
               ) : (
                 <p className="direct-note">
-                  Supports YouTube and direct video links (.mp4, .mov, .webm)
+                  Paste YouTube links to save `.mp4` directly to your local drive
                 </p>
               )}
             </div>
@@ -189,11 +173,11 @@ export default function HomePage() {
             className="primary"
             disabled={
               isProcessing ||
-              (activeTab === "link" && (!urlInput || !!errorMessage)) ||
+              (activeTab === "link" && !urlInput) ||
               (activeTab === "upload" && !file)
             }
           >
-            {isProcessing ? "Processing Download..." : "Download Now"}
+            {isProcessing ? "Downloading to device..." : "Download Now"}
           </button>
         </form>
       </main>
