@@ -14,7 +14,7 @@ function directLinkError(value: string) {
   try {
     const url = new URL(value);
 
-    // 1. Check protocol (HTTP/HTTPS only)
+    // 1. Ensure valid HTTP/HTTPS protocol
     if (!["http:", "https:"].includes(url.protocol)) {
       return "Use an HTTP or HTTPS link.";
     }
@@ -25,7 +25,7 @@ function directLinkError(value: string) {
       host === "youtu.be" ||
       host.endsWith(".youtu.be");
 
-    // 2. Allow YouTube links directly; otherwise, require a video file extension
+    // 2. Pass YouTube links directly; check direct file extension for all other hosts
     if (!isYouTube && !/\.(mp4|mov|webm|m4v)$/i.test(url.pathname)) {
       return "The link must end in .mp4, .mov, .webm, or .m4v.";
     }
@@ -34,7 +34,7 @@ function directLinkError(value: string) {
   } catch {
     return "Enter a complete, valid URL.";
   }
-}function Logo(){return <span className="logo-mark" aria-hidden="true"><span>V</span></span>}
+function Logo(){return <span className="logo-mark" aria-hidden="true"><span>V</span></span>}
 function ChaiDialog(){const [copied,setCopied]=useState("");function copy(value:string){navigator.clipboard.writeText(value);setCopied(value);setTimeout(()=>setCopied(""),1600)}return <Dialog><DialogTrigger asChild><button className="chai"><Heart size={17}/> Buy me chai</button></DialogTrigger><DialogContent className="chai-dialog"><DialogHeader><DialogTitle>Buy me a chai</DialogTitle><DialogDescription>If VidLift helped you, you can support its running costs.</DialogDescription></DialogHeader><div className="pay-method"><span>JazzCash Till ID</span><strong>984279231</strong><button type="button" onClick={()=>copy("984279231")} aria-label="Copy JazzCash Till ID">{copied==="984279231"?<Check/>:<Clipboard/>}</button></div><div className="pay-method"><span>Binance ID</span><strong>1179481269</strong><button type="button" onClick={()=>copy("1179481269")} aria-label="Copy Binance ID">{copied==="1179481269"?<Check/>:<Clipboard/>}</button></div><form className="proof-form" action="https://formsubmit.co/mureedhussain0110@gmail.com" method="POST" encType="multipart/form-data"><input type="hidden" name="_subject" value="New VidLift chai payment"/><input type="hidden" name="_template" value="table"/><label>Payment method<select name="payment_method" required><option value="">Select method</option><option>JazzCash</option><option>Binance</option></select></label><label>Your number or Binance ID<input name="payer_number" required placeholder="Used for payment"/></label><label>Transaction ID<input name="transaction_id" required placeholder="Enter transaction ID"/></label><label>Payment screenshot <small>PNG or JPG, maximum 10 MB</small><input type="file" name="attachment" accept="image/png,image/jpeg" required/></label><label className="data-consent"><input type="checkbox" required/><span>I agree to send these details through FormSubmit for verification.</span></label><button type="submit" className="submit-proof">Send payment proof</button></form><p className="form-note">Your first submission will ask the site owner to activate email delivery.</p></DialogContent></Dialog>}
 export default function Home(){
  const inputRef=useRef<HTMLInputElement>(null);const [sourceMode,setSourceMode]=useState<SourceMode>("link");const [videoUrl,setVideoUrl]=useState("");const [linkTouched,setLinkTouched]=useState(false);const [file,setFile]=useState<File|null>(null);const [format,setFormat]=useState<Format>("mp4");const [quality,setQuality]=useState("Original");const [agreed,setAgreed]=useState(false);const [sponsor,setSponsor]=useState(false);const preview=useMemo(()=>file?URL.createObjectURL(file):"",[file]);const linkError=directLinkError(videoUrl);const sourceReady=sourceMode==="file"?!!file:!linkError;
