@@ -25,6 +25,14 @@ export default function HomePage() {
         body: JSON.stringify({ url: urlInput }),
       });
 
+      // Safely check content type before parsing JSON
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(
+          "Server returned an invalid response (HTML page). Check route path or API key."
+        );
+      }
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch video.");
 
@@ -33,7 +41,7 @@ export default function HomePage() {
       a.href = data.downloadUrl;
       a.target = "_blank";
       a.rel = "noopener noreferrer";
-      a.download = `${data.title}.mp4`;
+      a.download = `${data.title || "video"}.mp4`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
