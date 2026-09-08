@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Call RapidAPI Cobalt endpoint with standard video options
     const response = await fetch(
       "https://cobalt-social-media-downloader.p.rapidapi.com/cobalt-download/",
       {
@@ -23,8 +24,7 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           url: url,
-          videoQuality: "1080",
-          filenameStyle: "basic",
+          videoQuality: "720",
           downloadMode: "auto",
         }),
       }
@@ -32,12 +32,18 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
 
-    // Check for returned direct download URL or redirect stream link
-    const downloadUrl = data.url || data.picker?.[0]?.url;
+    // Check for direct stream URL or tunnel URL returned by Cobalt API
+    let downloadUrl = data.url || data.picker?.[0]?.url;
 
     if (!response.ok || !downloadUrl) {
+      console.error("RapidAPI Response Error:", data);
       return NextResponse.json(
-        { error: data.text || "Failed to retrieve direct download link." },
+        {
+          error:
+            data.text ||
+            data.message ||
+            "Unable to extract link. Please try another video or check your RapidAPI subscription.",
+        },
         { status: 400 }
       );
     }
@@ -47,9 +53,9 @@ export async function POST(req: NextRequest) {
       title: "video",
     });
   } catch (err: any) {
-    console.error("RapidAPI Error:", err);
+    console.error("Route Error:", err);
     return NextResponse.json(
-      { error: "Server encountered an error processing request." },
+      { error: "Server error occurred while processing video." },
       { status: 500 }
     );
   }
