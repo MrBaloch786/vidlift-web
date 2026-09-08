@@ -1,0 +1,1 @@
+import type {MetadataRoute} from "next";export default function sitemap():MetadataRoute.Sitemap{const base="https://YOUR-DOMAIN.com";return["","/privacy","/terms","/copyright"].map(path=>({url:base+path,lastModified:new Date(),changeFrequency:path?"yearly":"weekly",priority:path?.8:1}))}
