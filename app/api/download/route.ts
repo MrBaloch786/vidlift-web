@@ -1,66 +1,81 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
 
-export async function POST(req: NextRequest) {
+// Handle CORS preflight requests from Blogger
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
+
+export async function POST(request: Request) {
   try {
-    const body = await req.json();
-    const url = body?.url;
+    const body = await request.json();
+    const { url } = body;
 
     if (!url) {
       return NextResponse.json(
-        { error: "Please enter a valid YouTube video URL." },
-        { status: 400 }
+        { error: 'Video URL is required' },
+        { 
+          status: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+          }
+        }
       );
     }
 
-    // Request direct video link from RapidAPI Cobalt instance
-    const response = await fetch(
-      "https://cobalt-social-media-downloader.p.rapidapi.com/cobalt-download/",
+    // Call reliable public processing instance server-side
+    const apiResponse = await fetch('https://api.cobalt.tools/api/json', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+      },
+      body: JSON.stringify({
+        url: url,
+        vQuality: '720',
+      }),
+    });
+
+    const data = await apiResponse.json();
+    const downloadUrl = data?.url || data?.picker?.[0]?.url;
+
+    if (!apiResponse.ok || !downloadUrl) {
+      return NextResponse.json(
+        { error: data?.text || 'Could not extract video link from URL.' },
+        { 
+          status: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+          }
+        }
+      );
+    }
+
+    return NextResponse.json(
+      { downloadUrl },
       {
-        method: "POST",
+        status: 200,
         headers: {
-          "Content-Type": "application/json",
-          "x-rapidapi-host": "cobalt-social-media-downloader.p.rapidapi.com",
-          "x-rapidapi-key":
-            "b4b6d55fe8msh1e21dc4284c1321p1b51adjsn2f64b3242624",
+          'Access-Control-Allow-Origin': '*',
         },
-        body: JSON.stringify({
-          url: url,
-          videoQuality: "720",
-          downloadMode: "auto",
-        }),
       }
     );
-
-    const data = await response.json();
-
-    // Check all possible response properties returned by Cobalt
-    const downloadUrl =
-      data?.url ||
-      data?.picker?.[0]?.url ||
-      data?.streamUrl;
-
-    if (!response.ok || !downloadUrl) {
-      console.error("RapidAPI API Error Response:", data);
-      return NextResponse.json(
-        {
-          error:
-            data?.text ||
-            data?.message ||
-            "Unable to parse video stream. Please check video privacy or RapidAPI key quota.",
-        },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json({
-      downloadUrl: downloadUrl,
-      title: "video",
-    });
   } catch (err: any) {
-    console.error("Server Route Catch Error:", err?.message || err);
     return NextResponse.json(
-      { error: `Server processing error: ${err?.message || "Unknown error"}` },
-      { status: 500 }
+      { error: err?.message || 'Server extraction error.' },
+      { 
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        }
+      }
     );
   }
 }
