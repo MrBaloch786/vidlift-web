@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 
-// Handle CORS preflight requests from Blogger
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// Handle browser preflight OPTIONS request
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
+    headers: corsHeaders,
   });
 }
 
@@ -20,16 +22,11 @@ export async function POST(request: Request) {
     if (!url) {
       return NextResponse.json(
         { error: 'Video URL is required' },
-        { 
-          status: 400,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-          }
-        }
+        { status: 400, headers: corsHeaders }
       );
     }
 
-    // Call reliable public processing instance server-side
+    // Call server-side processing node
     const apiResponse = await fetch('https://api.cobalt.tools/api/json', {
       method: 'POST',
       headers: {
@@ -48,34 +45,19 @@ export async function POST(request: Request) {
 
     if (!apiResponse.ok || !downloadUrl) {
       return NextResponse.json(
-        { error: data?.text || 'Could not extract video link from URL.' },
-        { 
-          status: 400,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-          }
-        }
+        { error: data?.text || 'Extraction failed for this link.' },
+        { status: 400, headers: corsHeaders }
       );
     }
 
     return NextResponse.json(
       { downloadUrl },
-      {
-        status: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
+      { status: 200, headers: corsHeaders }
     );
   } catch (err: any) {
     return NextResponse.json(
-      { error: err?.message || 'Server extraction error.' },
-      { 
-        status: 500,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-        }
-      }
+      { error: err?.message || 'Server error occurred.' },
+      { status: 500, headers: corsHeaders }
     );
   }
 }
