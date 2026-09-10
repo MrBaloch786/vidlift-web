@@ -1,16 +1,26 @@
 import { NextResponse } from 'next/server';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
+// CORS response helper
+function createCorsResponse(data: any, status: number) {
+  return NextResponse.json(data, {
+    status,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
 
-// Handle browser preflight OPTIONS request
+// Handle Browser Options Request (Preflight)
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
-    headers: corsHeaders,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
   });
 }
 
@@ -20,13 +30,10 @@ export async function POST(request: Request) {
     const { url } = body;
 
     if (!url) {
-      return NextResponse.json(
-        { error: 'Video URL is required' },
-        { status: 400, headers: corsHeaders }
-      );
+      return createCorsResponse({ error: 'URL is required' }, 400);
     }
 
-    // Call server-side processing node
+    // Server-side fetch to bypass client CORS
     const apiResponse = await fetch('https://api.cobalt.tools/api/json', {
       method: 'POST',
       headers: {
@@ -44,20 +51,11 @@ export async function POST(request: Request) {
     const downloadUrl = data?.url || data?.picker?.[0]?.url;
 
     if (!apiResponse.ok || !downloadUrl) {
-      return NextResponse.json(
-        { error: data?.text || 'Extraction failed for this link.' },
-        { status: 400, headers: corsHeaders }
-      );
+      return createCorsResponse({ error: 'Extraction failed for this link.' }, 400);
     }
 
-    return NextResponse.json(
-      { downloadUrl },
-      { status: 200, headers: corsHeaders }
-    );
+    return createCorsResponse({ downloadUrl }, 200);
   } catch (err: any) {
-    return NextResponse.json(
-      { error: err?.message || 'Server error occurred.' },
-      { status: 500, headers: corsHeaders }
-    );
+    return createCorsResponse({ error: 'Server connection error' }, 500);
   }
 }
